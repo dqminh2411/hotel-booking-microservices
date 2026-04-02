@@ -12,9 +12,10 @@
 
 ## Team Members
 
-| Name | Student ID | Role | Contribution |
-|------|------------|------|-------------|
-|      |            |      |             |
+| Name            | Student ID | Role | Contribution |
+|-----------------|------------|------|-------------|
+| Đoàn Quang Minh | B22DCCN527 | ...  | ...         |
+| Nguyễn Đức Lâm  | B22DCCN479 | ...  | ...         |
 
 ---
 

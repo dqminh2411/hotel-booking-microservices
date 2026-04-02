@@ -16,10 +16,10 @@
 
 Describe or diagram the high-level Business Process to be automated.
 
-- **Domain**: *(fill in)*
+- **Domain**: Hệ thống đặt phòng khách sạn
 - **Business Process**: *(fill in)*
-- **Actors**: *(fill in)*
-- **Scope**: *(fill in)*
+- **Actors**: Customer(tìm kiếm, xem chi tiết, đặt phòng)
+- **Scope**: *(What is in and out of scope?)*
 
 **Process Diagram:**
 
@@ -60,6 +60,16 @@ Decompose the process from 1.1 into granular actions. Mark actions unsuitable fo
 
 > Actions marked ❌: manual-only, require human judgment, or cannot be encapsulated as a service.
 
+
+| Step | Activity                | Actor    | Description                                                                  |
+|------|-------------------------|----------|------------------------------------------------------------------------------|
+| 1    | Tìm khách sạn           | Customer | Khách hàng tìm kiếm khách sạn theo địa điểm, ngày check-in và check-out      |
+| 2    | Xem chi tiết khách sạn  | Customer | Khách hàng xem chi tiết khách sạn, các loại phòng, giá phòng, cơ sở vật chất |
+| 3    | Chọn phòng              | Customer | Khách hàng lựa chọn phòng để tiến hành đặt phòng                             |
+| 4    | Đặt phòng               | Customer | Khách hàng lựa chọn, điền thông tin cần thiết và thực hiện ấn đặt phòng      |
+| 5    | Nhận thông báo qua mail | Customer | Khách hàng sau khi đặt phòng nhận được mail đơn đặt phòng được xác nhận      |
+
+
 ### 2.3 Entity Service Candidates
 
 Identify business entities and group reusable (agnostic) actions into Entity Service Candidates.
@@ -83,6 +93,7 @@ Map entities/processes to REST URI Resources.
 | Entity / Process | Resource URI |
 |------------------|--------------|
 |                  |              |
+
 
 ### 2.6 Associate Capabilities with Resources and Methods
 
