@@ -8,9 +8,10 @@ This repository is a **starter template** for building a microservices-based sys
 
 ## 👥 Team Members
 
-| Name | Student ID | Role | Contribution |
-|------|------------|------|-------------|
-| ...  | ...        | ...  | ...         |
+| Name            | Student ID | Role | Contribution |
+|-----------------|------------|------|-------------|
+| Đoàn Quang Minh | B22DCCN527 | ...  | ...         |
+| Nguyễn Đức Lâm  | B22DCCN479 | ...  | ...         |
 
 ---
 

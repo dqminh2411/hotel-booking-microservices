@@ -13,10 +13,10 @@ This document outlines the business logic analysis and service-oriented design f
 
 Describe the specific business process (use case) your system addresses:
 
-- **Domain**: *(e.g., E-commerce, Healthcare, Education)*
+- **Domain**: Hệ thống đặt phòng khách sạn
 - **Problem**: *(What pain point does this system solve?)*
-- **Users/Actors**: *(Who interacts with the system?)*
-- **Scope**: *(What is in and out of scope?)*
+- **Users/Actors**: Customer(tìm kiếm, xem chi tiết, đặt phòng)
+- **Scope**: 
 
 ---
 
@@ -26,17 +26,21 @@ Analyze the business process to identify key functionalities and potential micro
 
 ### 2.1 Business Process Decomposition
 
-| Step | Activity               | Actor    | Description                      |
-|------|------------------------|----------|----------------------------------|
-| 1    | *(e.g., Browse items)* | Customer | *(describe the step)*           |
-| 2    | ...                    | ...      | ...                              |
+| Step | Activity                | Actor    | Description                                                                  |
+|------|-------------------------|----------|------------------------------------------------------------------------------|
+| 1    | Tìm khách sạn           | Customer | Khách hàng tìm kiếm khách sạn theo địa điểm, ngày check-in và check-out      |
+| 2    | Xem chi tiết khách sạn  | Customer | Khách hàng xem chi tiết khách sạn, các loại phòng, giá phòng, cơ sở vật chất |
+| 3    | Chọn phòng              | Customer | Khách hàng lựa chọn phòng để tiến hành đặt phòng                             |
+| 4    | Đặt phòng               | Customer | Khách hàng lựa chọn, điền thông tin cần thiết và thực hiện ấn đặt phòng      |
+| 5    | Nhận thông báo qua mail | Customer | Khách hàng sau khi đặt phòng nhận được mail đơn đặt phòng được xác nhận      |
+
 
 ### 2.2 Entity Identification
 
-| Entity      | Attributes                     | Owned By      |
-|-------------|--------------------------------|---------------|
-| *(e.g., User)* | id, name, email, role       | Service A     |
-| ...         | ...                            | ...           |
+| Entity   | Attributes                                                                                                                                    | Owned By      |
+|----------|-----------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| Hotel    | id, name, description, host_id, province_code, district_code, ward_code, street, is_active, longitude, latitude, created_at                   | Hotel-Service |
+| RoomType | id, hotel_id,name, description, max_guests, bed_count, bed_type, base_price_per_night, has_free_cancellation, is_active, quantity, created_at | Hotel-Service |
 
 ### 2.3 Service Candidate Identification
 
