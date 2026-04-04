@@ -16,10 +16,21 @@
 
 Describe or diagram the high-level Business Process to be automated.
 
-- **Domain**: Hệ thống đặt phòng khách sạn
-- **Business Process**: *(fill in)*
-- **Actors**: Customer(tìm kiếm, xem chi tiết, đặt phòng)
-- **Scope**: *(What is in and out of scope?)*
+- **Domain**: Hotel Booking System (Hệ thống đặt phòng khách sạn)
+- **Business Process**: Place Booking — Khách hàng tìm kiếm phòng khách sạn theo tiêu chí (ngày check-in, check-out, loại phòng), xem thông tin chi tiết, thực hiện đặt phòng và thanh toán tiền cọc, nhận xác nhận qua email.
+- **Actors**:
+  - **Customer** — tìm kiếm khách sạn, xem chi tiết phòng, đặt phòng, thanh toán tiền cọc
+  - **System (PlaceBookingService)** — điều phối toàn bộ luồng đặt phòng giữa các services
+- **Scope**:
+
+| In Scope | Out of Scope |
+|----------|--------------|
+| Tìm kiếm phòng theo ngày và loại phòng | Chọn phòng cụ thể theo số phòng |
+| Xem thông tin chi tiết khách sạn và loại phòng | Quản lý check-in / check-out |
+| Đặt phòng và giữ chỗ có timeout | Loyalty points / chương trình khách hàng thân thiết |
+| Thanh toán (mock) và nhận xác nhận email | Tích hợp kênh phân phối ngoài (Booking.com, Agoda) |
+| Saga rollback khi thanh toán thất bại | Quản lý nhân viên khách sạn |
+| Circuit Breaker cho payment service | Mobile application |
 
 **Process Diagram:**
 
@@ -214,8 +225,12 @@ sequenceDiagram
   PlaceBookingService->>HotelService: GET room type
   HotelService-->>PlaceBookingService: room info
 
-  PlaceBookingService->>BookingService: check availability
-  BookingService-->>PlaceBookingService: available or not
+
+
+  PlaceBookingService->>HotelService: check availability (roomTypeId, dates)
+  HotelService->>BookingService: get booked rooms by date
+  BookingService-->>HotelService: booked data
+  HotelService-->>PlaceBookingService: available or not
 
   alt room not available
     PlaceBookingService-->>Client: error response
