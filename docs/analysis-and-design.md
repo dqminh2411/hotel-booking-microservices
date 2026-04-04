@@ -16,21 +16,19 @@
 
 Describe or diagram the high-level Business Process to be automated.
 
-- **Domain**: Hotel Booking System (Hệ thống đặt phòng khách sạn)
+- **Domain**: Hệ thống đặt phòng khách sạn
 - **Business Process**: Place Booking — Khách hàng tìm kiếm phòng khách sạn theo tiêu chí (ngày check-in, check-out, loại phòng), xem thông tin chi tiết, thực hiện đặt phòng và thanh toán tiền cọc, nhận xác nhận qua email.
-- **Actors**:
-  - **Customer** — tìm kiếm khách sạn, xem chi tiết phòng, đặt phòng, thanh toán tiền cọc
-  - **System (PlaceBookingService)** — điều phối toàn bộ luồng đặt phòng giữa các services
+- **Actors**: Customer - tìm kiếm khách sạn, xem chi tiết phòng, đặt phòng, thanh toán tiền cọc
 - **Scope**:
 
-| In Scope | Out of Scope |
-|----------|--------------|
-| Tìm kiếm phòng theo ngày và loại phòng | Chọn phòng cụ thể theo số phòng |
-| Xem thông tin chi tiết khách sạn và loại phòng | Quản lý check-in / check-out |
-| Đặt phòng và giữ chỗ có timeout | Loyalty points / chương trình khách hàng thân thiết |
-| Thanh toán (mock) và nhận xác nhận email | Tích hợp kênh phân phối ngoài (Booking.com, Agoda) |
-| Saga rollback khi thanh toán thất bại | Quản lý nhân viên khách sạn |
-| Circuit Breaker cho payment service | Mobile application |
+  | In Scope                                       | Out of Scope                                        |
+    |------------------------------------------------|-----------------------------------------------------|
+  | Tìm kiếm khách sạn theo tên và địa chỉ         | Chọn phòng cụ thể theo số phòng                     |
+  | Xem thông tin chi tiết khách sạn và loại phòng | Quản lý check-in / check-out                        |
+  | Đặt phòng và giữ chỗ có timeout                | Loyalty points / chương trình khách hàng thân thiết |
+  | Thanh toán (mock) và nhận xác nhận email       | Tích hợp kênh phân phối ngoài (Booking.com, Agoda)  |
+  | Saga rollback khi thanh toán thất bại          | Quản lý nhân viên khách sạn                         |
+  | Circuit Breaker cho payment service            | Quản lý huỷ phòng sau khi đặt xong                  |
 
 **Process Diagram:**
 
@@ -77,7 +75,11 @@ U --> V[Gửi email]
 
 V --> W[Kết thúc]
 ```
-
+<p align="center">
+ <img src="./asset/placebooking-process-flowchart.png" alt="Place Booking Process Flowchart" />
+  <br/>
+  <sub>Place Booking Process Flowchart</sub>
+</p>
 
 
 
@@ -88,7 +90,7 @@ List existing systems, databases, or legacy logic related to this process.
 | System Name | Type | Current Role | Interaction Method |
 |-------------|------|--------------|-------------------|
 |             |      |              |                   |
- None — the process is currently performed manually.
+None — the process is currently performed manually.
 > If none exist, state: *"None — the process is currently performed manually."*
 
 ### 1.3 Non-Functional Requirements
@@ -225,11 +227,9 @@ sequenceDiagram
   PlaceBookingService->>HotelService: GET room type
   HotelService-->>PlaceBookingService: room info
 
-
-
-  PlaceBookingService->>HotelService: check availability (roomTypeId, dates)
-  HotelService->>BookingService: get booked rooms by date
-  BookingService-->>HotelService: booked data
+  PlaceBookingService->>HotelService: check availability
+  HotelService->>BookingService: get booking data by date
+  BookingService-->>HotelService: booking data
   HotelService-->>PlaceBookingService: available or not
 
   alt room not available
@@ -252,7 +252,11 @@ sequenceDiagram
     end
   end
 ```
-
+<p align="center">
+ <img src="./asset/placebooking-process-sequence-diagram.png" alt="Place Booking Process Sequence Diagram" />
+  <br/>
+  <sub>Place Booking Process Sequence Diagram</sub>
+</p>
 ---
 
 ## Part 3 — Service-Oriented Design
@@ -266,6 +270,7 @@ Full OpenAPI specs:
 - [`docs/api-specs/place-booking-service.yaml`](api-specs/place-booking-service.yaml)
 - [`docs/api-specs/payment-service.yaml`](api-specs/payment-service.yaml)
 - [`docs/api-specs/notification-service.yaml`](api-specs/notification-service.yaml)
+- [`docs/api-specs/user-service.yaml`](api-specs/user-service.yaml)
 
 **User-service (Entity Service):**
 
@@ -318,6 +323,7 @@ Full OpenAPI specs:
 | /health              | GET    | application/json   | 200            |
 | /notifications/email | POST   | application/json   | 202, 400       |
 
+**Booking Service (Entity Service):**
 ### 3.2 Service Logic Design
 
 Internal processing flow for each service.
@@ -356,7 +362,14 @@ flowchart TD
   N --> P[Return success response]
 ```
 
-**Booking Service (Entity Service):**
+<p align="center">
+ <img src="./asset/placebooking-service-logic-design.png" alt="PlaceBookingService Logic Design"/>
+  <br/>
+  <sub>PlaceBookingService Logic Design</sub>
+</p>
+
+
+Booking Service (Entity Service):
 
 ```mermaid
 flowchart TD
@@ -373,6 +386,12 @@ flowchart TD
   H --> I[Return success]
 ```
 
+<p align="center">
+ <img src="./asset/bookingservice-logic-design.png" alt="BookingService Logic Design"/>
+  <br/>
+  <sub>BookingService Logic Design</sub>
+</p>
+
 Hotel Service (Entity Service):
 ```mermaid
 flowchart TD
@@ -380,9 +399,16 @@ flowchart TD
 
     B -->|Get hotels| C[(Query hotels table)]
     B -->|Get room types by hotel| D[(Query room_types by hotelId)]
-    B -->|With dates| E[(Calculate availability)]
+    B -->|With checkin-checkout dates| E[(Check availability)]
+    E -->|get booking data| G[BooingService]
+    G -->|return booking data| E  
 
     C --> F[Return data]
     D --> F
     E --> F
 ```
+<p align="center">
+ <img src="./asset/hotelservice-logic-design.png" alt="HotelService Logic Design"/>
+  <br/>
+  <sub>HotelService Logic Design</sub>
+</p>
