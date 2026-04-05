@@ -1,0 +1,233 @@
+openapi: 3.0.3
+info:
+  title: Place Booking Service API
+  description: |
+    Task Service — Saga Orchestrator cho luồng đặt phòng.
+
+    Luồng xử lý:
+    1. [Sync REST] Xác minh user qua user-service
+    2. Trả về 202 Accepted ngay cho client
+    3. [Kafka] Publish "CreateBooking" → booking-service
+    4. [Kafka] Publish "ProcessPayment" → payment-service
+    5. [Kafka] Publish "ConfirmBooking" hoặc "CancelBooking" → booking-service
+    6. [Kafka] Publish "SendNotification" → notification-service
+
+    Client dùng bookingId trả về trong 202 để polling trạng thái tại booking-service.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5001
+    description: Local development
+
+tags:
+  - name: Health
+  - name: PlaceBooking
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /place-booking:
+    post:
+      tags: [PlaceBooking]
+      summary: Khởi tạo luồng đặt phòng (Saga)
+      description: |
+        Endpoint duy nhất của Task Service.
+
+        **Xử lý đồng bộ (trước khi trả 202):**
+        - Validate request body
+        - Gọi user-service (sync REST) để xác minh userId và lấy email, tên
+        - Nếu user không tồn tại → trả 404 ngay, không bắt đầu Saga
+
+        **Sau khi trả 202:**
+        - Tạo Saga state trong DB nội bộ
+        - Publish Kafka commands theo thứ tự và chờ reply events
+        - Thực thi compensating transaction nếu có bước thất bại
+
+        **Client polling:** Dùng bookingId trả về để gọi GET /bookings/{bookingId} tại booking-service.
+      operationId: placeBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceBookingRequest'
+            example:
+              userId: 550e8400-e29b-41d4-a716-446655440000
+              hotelId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+              roomTypeList: [
+                {
+                  roomTypeId: rt-001-uuid,
+                  quantity: 1,
+                  price: 1000000
+                },
+                {
+                  roomTypeId: rt-002-uuid,
+                  quantity: 1,
+                  price: 1500000
+                }
+              ]
+              checkin: "2024-06-01"
+              checkout: "2024-06-05"
+              paymentInfo:
+                cardNumber: "4111111111111111"
+                cardHolder: Nguyen Van A
+                expiryMonth: 12
+                expiryYear: 2027
+                cvv: "123"
+      responses:
+        '202':
+          description: |
+            Saga đã được khởi tạo. Client dùng bookingId để polling trạng thái.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceBookingAccepted'
+              example:
+                bookingId: bk-550e8400-uuid
+                status: PENDING
+                message: Yêu cầu đặt phòng đang được xử lý. Vui lòng kiểm tra trạng thái bằng bookingId.
+                pollingUrl: /bookings/bk-550e8400-uuid
+        '400':
+          description: Request không hợp lệ (thiếu field, ngày sai định dạng, checkout trước checkin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: checkin phải trước checkout và không được là ngày trong quá khứ
+        '404':
+          description: User không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: USER_NOT_FOUND
+                message: User không tồn tại trong hệ thống
+
+components:
+  schemas:
+    PlaceBookingRequest:
+      type: object
+      required: [userId, hotelId, roomTypeList, checkin, checkout, paymentInfo]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: ID của user đang đặt phòng
+          example: 550e8400-e29b-41d4-a716-446655440000
+        hotelId:
+          type: string
+          format: uuid
+          description: ID khách sạn muốn đặt
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        roomTypeList:
+          type: array
+          items:
+            type: object
+            properties:
+              roomTypeId:
+                type: string
+                format: uuid
+              quantity:
+                type: integer
+                example: 1
+              price:
+                type: number
+                format: double
+                example: 1000000
+        checkin:
+          type: string
+          format: date
+          description: Ngày check-in (không được là ngày trong quá khứ)
+          example: "2024-06-01"
+        checkout:
+          type: string
+          format: date
+          description: Ngày check-out (phải sau checkin ít nhất 1 ngày)
+          example: "2024-06-05"
+        paymentInfo:
+          $ref: '#/components/schemas/PaymentInfo'
+
+    PaymentInfo:
+      type: object
+      required: [cardNumber, cardHolder, expiryMonth, expiryYear, cvv]
+      properties:
+        cardNumber:
+          type: string
+          description: Số thẻ (16 chữ số)
+          example: "4111111111111111"
+        cardHolder:
+          type: string
+          description: Tên chủ thẻ
+          example: Nguyen Van A
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 12
+        expiryYear:
+          type: integer
+          example: 2027
+        cvv:
+          type: string
+          description: Mã CVV (3-4 chữ số)
+          example: "123"
+
+    PlaceBookingAccepted:
+      type: object
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          description: ID booking vừa được tạo. Dùng để polling trạng thái tại booking-service.
+          example: bk-550e8400-uuid
+        status:
+          type: string
+          enum: [PENDING]
+          example: PENDING
+        message:
+          type: string
+          example: Yêu cầu đặt phòng đang được xử lý
+        pollingUrl:
+          type: string
+          description: URL để client polling trạng thái
+          example: /bookings/bk-550e8400-uuid
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: USER_NOT_FOUND
+        message:
+          type: string
+          example: User không tồn tại trong hệ thống
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

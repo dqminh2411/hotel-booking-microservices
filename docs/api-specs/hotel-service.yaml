@@ -1,0 +1,369 @@
+openapi: 3.0.3
+info:
+  title: Hotel Service API
+  description: |
+    Entity Service — quản lý thông tin khách sạn, loại phòng và capacity.
+    Tính toán room availability bằng cách gọi nội bộ đến booking-service để lấy số booking hiện tại,
+    sau đó so sánh với capacity của từng loại phòng.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5003
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Hotels
+  - name: RoomTypes
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /hotels:
+    get:
+      tags: [Hotels]
+      summary: Tìm kiếm danh sách khách sạn
+      description: Tìm kiếm khách sạn theo tên hoặc địa chỉ. Trả về danh sách khách sạn phù hợp.
+      operationId: searchHotels
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: Tên khách sạn (tìm kiếm gần đúng)
+          schema:
+            type: string
+          example: Marriott
+        - name: address
+          in: query
+          required: false
+          description: Địa chỉ hoặc thành phố
+          schema:
+            type: string
+          example: Hanoi
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          example: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          example: 10
+      responses:
+        '200':
+          description: Danh sách khách sạn phù hợp
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotelSummary'
+                  total:
+                    type: integer
+                    example: 25
+                  page:
+                    type: integer
+                    example: 0
+                  size:
+                    type: integer
+                    example: 10
+
+  /hotels/{hotelId}:
+    get:
+      tags: [Hotels]
+      summary: Lấy thông tin chi tiết khách sạn
+      operationId: getHotelById
+      parameters:
+        - name: hotelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+      responses:
+        '200':
+          description: Thông tin chi tiết khách sạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+        '404':
+          description: Khách sạn không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: HOTEL_NOT_FOUND
+                message: Khách sạn không tồn tại
+
+  /hotels/{hotelId}/room-types:
+    get:
+      tags: [RoomTypes]
+      summary: Lấy danh sách loại phòng của khách sạn
+      description: |
+        Nếu có tham số checkin và checkout, hệ thống sẽ tính toán availability cho từng loại phòng
+        bằng cách gọi nội bộ đến booking-service (GET /bookings/count) và so sánh với capacity.
+      operationId: getRoomTypesByHotel
+      parameters:
+        - name: hotelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        - name: checkin
+          in: query
+          required: false
+          description: Ngày check-in (ISO 8601). Bắt buộc kèm checkout nếu muốn xem availability.
+          schema:
+            type: string
+            format: date
+          example: "2024-06-01"
+        - name: checkout
+          in: query
+          required: false
+          description: Ngày check-out (ISO 8601). Phải sau checkin ít nhất 1 ngày.
+          schema:
+            type: string
+            format: date
+          example: "2024-06-05"
+      responses:
+        '200':
+          description: Danh sách loại phòng (kèm availability nếu có truyền checkin/checkout)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomType'
+              example:
+                - roomTypeId: rt-001
+                  name: Standard Room
+                  description: Phòng tiêu chuẩn view thành phố
+                  capacity: 10
+                  pricePerNight: 800000
+                  amenities: [WiFi, TV, Air conditioning]
+                  availableRooms: 4
+                - roomTypeId: rt-002
+                  name: Deluxe Room
+                  description: Phòng deluxe view hồ
+                  capacity: 5
+                  pricePerNight: 1200000
+                  amenities: [WiFi, TV, Air conditioning, Minibar]
+                  availableRooms: 0
+        '400':
+          description: Ngày không hợp lệ (checkout trước checkin, ngày trong quá khứ)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_DATE_RANGE
+                message: Ngày checkout phải sau ngày checkin
+        '404':
+          description: Khách sạn không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /hotels/{hotelId}/room-types/{roomTypeId}:
+    get:
+      tags: [RoomTypes]
+      summary: Lấy thông tin chi tiết loại phòng
+      operationId: getRoomTypeById
+      parameters:
+        - name: hotelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        - name: roomTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: rt-001-uuid
+        - name: checkin
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-06-01"
+        - name: checkout
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-06-05"
+      responses:
+        '200':
+          description: Thông tin chi tiết loại phòng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomType'
+        '400':
+          description: Ngày không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Khách sạn hoặc loại phòng không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: ROOM_TYPE_NOT_FOUND
+                message: Loại phòng không tồn tại trong khách sạn này
+
+components:
+  schemas:
+    HotelSummary:
+      type: object
+      properties:
+        hotelId:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        name:
+          type: string
+          example: Marriott Hanoi
+        address:
+          type: string
+          example: 12 Phan Chu Trinh, Hoan Kiem, Hanoi
+        starRating:
+          type: double
+          minimum: 1.0
+          maximum: 5.0
+          example: 4.5
+        thumbnailUrl:
+          type: string
+          format: uri
+          example: https://example.com/hotels/marriott-hanoi.jpg
+
+    Hotel:
+      allOf:
+        - $ref: '#/components/schemas/HotelSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+              example: Khách sạn 5 sao tọa lạc trung tâm Hà Nội
+            phone:
+              type: string
+              example: "+84 24 3933 0000"
+            email:
+              type: string
+              format: email
+              example: info@marriotthanoi.com
+            imageUrls:
+              type: array
+              items:
+                type: string
+                format: uri
+            amenities:
+              type: array
+              items:
+                type: string
+              example: [Pool, Gym, Spa, Restaurant]
+
+    RoomType:
+      type: object
+      properties:
+        roomTypeId:
+          type: string
+          format: uuid
+          example: rt-001-uuid
+        hotelId:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        name:
+          type: string
+          example: Deluxe Room
+        description:
+          type: string
+          example: Phòng deluxe view hồ, tầng cao
+        capacity:
+          type: integer
+          description: Tổng số phòng loại này trong khách sạn
+          example: 10
+        maxGuests:
+          type: integer
+          description: Sức chứa tối đa (số khách)
+          example: 2
+        pricePerNight:
+          type: number
+          format: double
+          example: 1200000
+        amenities:
+          type: array
+          items:
+            type: string
+          example: [WiFi, TV, Air conditioning, Minibar, Bathtub]
+        imageUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        availableRooms:
+          type: integer
+          description: Số phòng còn trống (chỉ có khi truyền checkin/checkout). Null nếu không truyền ngày.
+          nullable: true
+          example: 3
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: HOTEL_NOT_FOUND
+        message:
+          type: string
+          example: Khách sạn không tồn tại
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

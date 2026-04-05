@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: Notification Service API
+  description: |
+    Utility Service — gửi email thông báo theo template.
+    
+    **Không expose qua API Gateway** — chỉ nhận lệnh qua Kafka (topic: notification-commands).
+    Trả về 202 Accepted ngay lập tức, việc gửi email thực sự diễn ra bất đồng bộ (fire & forget).
+    
+    Nếu gửi email thất bại, service tự retry với exponential backoff.
+    Việc gửi email thất bại KHÔNG gây rollback Saga — đây là side effect, không phải bước quan trọng.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5006
+    description: Local development (internal only)
+
+tags:
+  - name: Health
+  - name: Notifications
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /notifications/email:
+    post:
+      tags: [Notifications]
+      summary: Gửi email thông báo
+      description: |
+        Nhận lệnh gửi email và trả về 202 Accepted ngay lập tức.
+        Email được gửi bất đồng bộ ở background.
+        
+        Các template hỗ trợ:
+        - **BOOKING_CONFIRMED**: Email xác nhận đặt phòng thành công
+        - **BOOKING_CANCELLED**: Email thông báo đặt phòng bị huỷ (thanh toán thất bại)
+      operationId: sendEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+            examples:
+              bookingConfirmed:
+                summary: Xác nhận đặt phòng thành công
+                value:
+                  to: nguyenvana@email.com
+                  template: BOOKING_CONFIRMED
+                  data:
+                    guestName: Nguyen Van A
+                    bookingId: bk-550e8400-uuid
+                    hotelName: Marriott Hanoi
+                    roomType: Deluxe Room
+                    checkin: "2024-06-01"
+                    checkout: "2024-06-05"
+                    numberOfNights: 4
+                    totalPrice: 4800000
+              bookingCancelled:
+                summary: Thông báo đặt phòng bị huỷ
+                value:
+                  to: nguyenvana@email.com
+                  template: BOOKING_CANCELLED
+                  data:
+                    guestName: Nguyen Van A
+                    bookingId: bk-550e8400-uuid
+                    hotelName: Marriott Hanoi
+                    checkin: "2024-06-01"
+                    checkout: "2024-06-05"
+                    reason: Thanh toán không thành công
+      responses:
+        '202':
+          description: Yêu cầu gửi email đã được nhận, đang xử lý bất đồng bộ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: QUEUED
+                  message:
+                    type: string
+                    example: Email sẽ được gửi đến nguyenvana@email.com
+        '400':
+          description: Dữ liệu không hợp lệ (thiếu email, template không tồn tại)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_TEMPLATE
+                message: Template BOOKING_UNKNOWN không tồn tại
+
+components:
+  schemas:
+    EmailRequest:
+      type: object
+      required: [to, template, data]
+      properties:
+        to:
+          type: string
+          format: email
+          description: Email người nhận
+          example: nguyenvana@email.com
+        template:
+          type: string
+          enum: [BOOKING_CONFIRMED, BOOKING_CANCELLED]
+          description: Template email sử dụng
+          example: BOOKING_CONFIRMED
+        data:
+          type: object
+          description: |
+            Dữ liệu điền vào template. Các field bắt buộc tùy theo template:
+            - BOOKING_CONFIRMED: guestName, bookingId, hotelName, roomType, checkin, checkout, numberOfNights, totalPrice
+            - BOOKING_CANCELLED: guestName, bookingId, hotelName, checkin, checkout, reason
+          additionalProperties: true
+          example:
+            guestName: Nguyen Van A
+            bookingId: bk-550e8400-uuid
+            hotelName: Marriott Hanoi
+            roomType: Deluxe Room
+            checkin: "2024-06-01"
+            checkout: "2024-06-05"
+            numberOfNights: 4
+            totalPrice: 4800000
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: INVALID_TEMPLATE
+        message:
+          type: string
+          example: Template không tồn tại

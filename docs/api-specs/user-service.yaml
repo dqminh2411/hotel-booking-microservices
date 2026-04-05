@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: User Service API
+  description: |
+    Entity Service — quản lý thông tin user profile.
+    Được gọi bởi PlaceBookingService (sync REST) để xác minh user và lấy thông tin (tên, email) trước khi bắt đầu Saga.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5002
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Users
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: Lấy thông tin user theo ID
+      description: |
+        Được gọi bởi PlaceBookingService để xác minh user tồn tại
+        và lấy email, tên phục vụ các bước sau của Saga.
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Thông tin user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: USER_NOT_FOUND
+                message: User với ID 550e8400-e29b-41d4-a716-446655440000 không tồn tại
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          example: Nguyen Van A
+        email:
+          type: string
+          format: email
+          example: nguyenvana@email.com
+        phone:
+          type: string
+          example: "0901234567"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T08:30:00Z"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: USER_NOT_FOUND
+        message:
+          type: string
+          example: User không tồn tại
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

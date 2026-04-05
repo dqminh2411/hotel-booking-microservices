@@ -1,0 +1,249 @@
+openapi: 3.0.3
+info:
+  title: Payment Service API
+  description: |
+    Microservice — xử lý thanh toán và hoàn tiền.
+    
+    **Không expose qua API Gateway** — chỉ nhận lệnh qua Kafka (topics: payment-commands)
+    và publish kết quả về Kafka (topics: payment-events).
+    
+    REST API này được dùng nội bộ bởi PlaceBookingService trong các trường hợp
+    cần gọi trực tiếp (ví dụ debug, admin tools).
+    
+    Circuit Breaker (Resilience4j) bảo vệ các call đến external payment gateway:
+    - Threshold: 5 lần failure liên tiếp → mở circuit
+    - Wait duration: 30 giây trước khi thử lại (half-open)
+    - Timeout per call: 5 giây
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5005
+    description: Local development (internal only)
+
+tags:
+  - name: Health
+  - name: Payments
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /payments:
+    post:
+      tags: [Payments]
+      summary: Xử lý thanh toán
+      description: |
+        Charge thẻ của khách hàng qua external payment gateway (mock).
+        Circuit Breaker sẽ trả về 503 ngay lập tức nếu circuit đang mở
+        (thay vì chờ timeout từ payment gateway).
+      operationId: processPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            example:
+              bookingId: bk-550e8400-uuid
+              amount: 4800000
+              currency: VND
+              paymentInfo:
+                cardNumber: "4111111111111111"
+                cardHolder: Nguyen Van A
+                expiryMonth: 12
+                expiryYear: 2027
+                cvv: "123"
+      responses:
+        '201':
+          description: Thanh toán thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                paymentId: pay-uuid-001
+                bookingId: bk-550e8400-uuid
+                amount: 4800000
+                currency: VND
+                status: SUCCESS
+                transactionRef: TXN-20240115-001
+                processedAt: "2024-01-15T08:31:00Z"
+        '400':
+          description: Dữ liệu thanh toán không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_PAYMENT_INFO
+                message: Thông tin thẻ không hợp lệ
+        '402':
+          description: Thanh toán thất bại (thẻ bị từ chối, không đủ số dư)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PAYMENT_DECLINED
+                message: Thẻ bị từ chối — không đủ số dư
+        '503':
+          description: Payment gateway không khả dụng (Circuit Breaker đang mở)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PAYMENT_GATEWAY_UNAVAILABLE
+                message: Dịch vụ thanh toán tạm thời không khả dụng. Vui lòng thử lại sau.
+
+  /payments/{paymentId}/refund:
+    post:
+      tags: [Payments]
+      summary: Hoàn tiền
+      description: |
+        Compensating transaction — được gọi khi Saga cần rollback sau khi payment đã thành công
+        nhưng bước sau (confirm booking) thất bại.
+      operationId: refundPayment
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: pay-uuid-001
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Lý do hoàn tiền
+                  example: Saga rollback — booking confirmation failed
+      responses:
+        '200':
+          description: Hoàn tiền thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                paymentId: pay-uuid-001
+                bookingId: bk-550e8400-uuid
+                amount: 4800000
+                currency: VND
+                status: REFUNDED
+                refundedAt: "2024-01-15T08:35:00Z"
+        '404':
+          description: Payment không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PAYMENT_NOT_FOUND
+                message: Payment không tồn tại
+        '503':
+          description: Payment gateway không khả dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    PaymentRequest:
+      type: object
+      required: [bookingId, amount, currency, paymentInfo]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+          example: 4800000
+        currency:
+          type: string
+          default: VND
+          example: VND
+        paymentInfo:
+          type: object
+          required: [cardNumber, cardHolder, expiryMonth, expiryYear, cvv]
+          properties:
+            cardNumber:
+              type: string
+              example: "4111111111111111"
+            cardHolder:
+              type: string
+              example: Nguyen Van A
+            expiryMonth:
+              type: integer
+              example: 12
+            expiryYear:
+              type: integer
+              example: 2027
+            cvv:
+              type: string
+              example: "123"
+
+    Payment:
+      type: object
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+          example: pay-uuid-001
+        bookingId:
+          type: string
+          format: uuid
+          example: bk-550e8400-uuid
+        amount:
+          type: number
+          format: double
+          example: 4800000
+        currency:
+          type: string
+          example: VND
+        status:
+          type: string
+          enum: [SUCCESS, FAILED, REFUNDED]
+        transactionRef:
+          type: string
+          description: Mã giao dịch từ payment gateway
+          example: TXN-20240115-001
+        processedAt:
+          type: string
+          format: date-time
+        refundedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
