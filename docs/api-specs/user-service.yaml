@@ -42,8 +42,10 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
+            minLength: 2
+            maxLength: 255
+            pattern: '^[A-Za-z0-9-]+$'
+          example: US-001
       responses:
         '200':
           description: Thông tin user
@@ -51,6 +53,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '400':
+          description: Request không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: User không tồn tại
           content:
@@ -59,7 +67,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 code: USER_NOT_FOUND
-                message: User với ID 550e8400-e29b-41d4-a716-446655440000 không tồn tại
+                message: User với ID US-999 không tồn tại
 
 components:
   schemas:
@@ -68,8 +76,7 @@ components:
       properties:
         userId:
           type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
+          example: US-001
         name:
           type: string
           example: Nguyen Van A
@@ -84,6 +91,11 @@ components:
           type: string
           format: date-time
           example: "2024-01-15T08:30:00Z"
+        roles:
+          type: array
+          items:
+            type: string
+          example: ["CUSTOMER"]
 
     HealthResponse:
       type: object
