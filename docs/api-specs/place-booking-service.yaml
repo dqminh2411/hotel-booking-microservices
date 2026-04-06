@@ -6,6 +6,7 @@ info:
 
     Luồng xử lý:
     1. [Sync REST] Xác minh user qua user-service
+    2. [Sync REST] Check room availability qua hotel-service
     2. Trả về 202 Accepted ngay cho client
     3. [Kafka] Publish "CreateBooking" → booking-service
     4. [Kafka] Publish "ProcessPayment" → payment-service
@@ -63,8 +64,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PlaceBookingRequest'
             example:
-              userId: 550e8400-e29b-41d4-a716-446655440000
-              hotelId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+              userId: US-001
               roomTypeList: [
                 {
                   roomTypeId: rt-001-uuid,
@@ -79,6 +79,11 @@ paths:
               ]
               checkin: "2024-06-01"
               checkout: "2024-06-05"
+              numAdults: 2
+              totalAmount: 2500000
+              currency: VND
+              paymentMethod: CREDIT_CARD
+              idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
               paymentInfo:
                 cardNumber: "4111111111111111"
                 cardHolder: Nguyen Van A
@@ -94,10 +99,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlaceBookingAccepted'
               example:
-                bookingId: bk-550e8400-uuid
+                bookingId: BK-550e8400
                 status: PENDING
                 message: Yêu cầu đặt phòng đang được xử lý. Vui lòng kiểm tra trạng thái bằng bookingId.
-                pollingUrl: /bookings/bk-550e8400-uuid
+                pollingUrl: /bookings/bk-550e8400
         '400':
           description: Request không hợp lệ (thiếu field, ngày sai định dạng, checkout trước checkin)
           content:
@@ -121,18 +126,12 @@ components:
   schemas:
     PlaceBookingRequest:
       type: object
-      required: [userId, hotelId, roomTypeList, checkin, checkout, paymentInfo]
+      required: [userId, roomTypeList, checkin, checkout, numAdults, totalAmount, currency, paymentMethod, paymentInfo, idempotencyKey]
       properties:
         userId:
           type: string
-          format: uuid
           description: ID của user đang đặt phòng
-          example: 550e8400-e29b-41d4-a716-446655440000
-        hotelId:
-          type: string
-          format: uuid
-          description: ID khách sạn muốn đặt
-          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          example: US-001
         roomTypeList:
           type: array
           items:
@@ -158,6 +157,28 @@ components:
           format: date
           description: Ngày check-out (phải sau checkin ít nhất 1 ngày)
           example: "2024-06-05"
+        numAdults:
+          type: integer
+          description: Số lượng người lớn
+          example: 2
+        totalAmount:
+          type: number
+          format: double
+          description: Tổng số tiền phải thanh toán
+          example: 1000000
+        currency:
+          type: string
+          description: Đơn vị tiền tệ
+          example: VND
+        paymentMethod:
+          type: string
+          enum: [CREDIT_CARD]
+          description: Phương thức thanh toán
+          example: CREDIT_CARD
+        idempotencyKey:
+          type: string
+          description: Chuỗi duy nhất do client tạo ra để đảm bảo idempotency
+          example: 550e8400-e29b-41d4-a716-446
         paymentInfo:
           $ref: '#/components/schemas/PaymentInfo'
 
@@ -193,7 +214,7 @@ components:
           type: string
           format: uuid
           description: ID booking vừa được tạo. Dùng để polling trạng thái tại booking-service.
-          example: bk-550e8400-uuid
+          example: bk-550e8400
         status:
           type: string
           enum: [PENDING]
@@ -204,7 +225,7 @@ components:
         pollingUrl:
           type: string
           description: URL để client polling trạng thái
-          example: /bookings/bk-550e8400-uuid
+          example: /bookings/bk-550e8400
 
     HealthResponse:
       type: object
