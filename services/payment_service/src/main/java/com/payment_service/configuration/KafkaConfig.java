@@ -1,4 +1,4 @@
-package com.notification_service.configuration;
+package com.payment_service.configuration;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
@@ -7,7 +7,6 @@ import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
 public class KafkaConfig {
-
 
 
 }

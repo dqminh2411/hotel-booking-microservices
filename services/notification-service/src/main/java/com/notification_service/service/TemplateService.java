@@ -1,5 +1,6 @@
 package com.notification_service.service;
 
+import com.notification_service.dto.EmailRequest;
 import com.notification_service.dto.EmailTemplate;
 import org.springframework.stereotype.Service;
 
@@ -8,7 +9,7 @@ import java.util.Map;
 @Service
 public class TemplateService {
 
-    public String buildContent(EmailTemplate template, Map<String, Object> data) {
+    public String buildContent(EmailTemplate template, EmailRequest data) {
 
         return switch (template) {
             case BOOKING_CONFIRMED, SendBookingConfirmed -> """
@@ -23,13 +24,13 @@ public class TemplateService {
 
                 Tổng tiền: %s VND
                 """.formatted(
-                data.get("guestName"),
-                data.get("bookingId"),
-                data.get("hotelName"),
-                data.get("roomType"),
-                data.get("checkin"),
-                data.get("checkout"),
-                data.get("totalPrice")
+                data.getBooking().getCustomer().getName(),
+                data.getBooking().getBookingId(),
+                data.getBooking().getHotel().getName(),
+                data.getBooking().getRoomTypeList(),
+                data.getBooking().getCheckin(),
+                data.getBooking().getCheckout(),
+                data.getBooking().getTotalAmount()
             );
 
             case BOOKING_CANCELLED, SendBookingFailed -> """
@@ -40,10 +41,10 @@ public class TemplateService {
                 Khách sạn: %s
                 Lý do: %s
                 """.formatted(
-                data.get("guestName"),
-                data.get("bookingId"),
-                data.get("hotelName"),
-                data.get("reason")
+                data.getBooking().getCustomer().getName(),
+                data.getBooking().getBookingId(),
+                data.getBooking().getHotel().getName(),
+                data.getReason()
             );
         };
     }
