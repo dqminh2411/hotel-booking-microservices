@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      routes:
+        - id: place-booking-service-route
+          uri: lb://place-booking-service
+          predicates:
+            - Path=/place-booking/**
+          filters:
+            - StripPrefix=1
+        - id: booking-service-route
+          uri: lb://booking-service
+          predicates:
+            - Path=/bookings/**
+          filters:
+            - StripPrefix=1
+
+server:
+  port: ${SERVER_PORT:8000}
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+
