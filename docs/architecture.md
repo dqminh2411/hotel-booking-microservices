@@ -83,15 +83,15 @@ Hệ thống sử dụng **hai kiểu giao tiếp** với ranh giới rõ ràng:
 
 ### 3.4 Inter-service Communication Matrix
 
-| From → To | place-booking | user-service | hotel-service | booking-service | payment-service | notification-service | Gateway | Kafka |
-|-----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Frontend** | | | | | | | REST | |
-| **API Gateway** | REST | REST | REST | REST | ❌ | ❌ | | |
-| **place-booking-service** | | REST sync | | Kafka | Kafka | Kafka | | pub/sub |
-| **hotel-service** | | | | REST sync | | | | |
-| **booking-service** | | | | | | | | pub (events) |
-| **payment-service** | | | | | | | | pub (events) |
-| **notification-service** | | | | | | | | |
+| From → To | place-booking | user-service | hotel-service | booking-service | payment-service | notification-service | Gateway |    Kafka     |
+|-----------|:-------------:|:---:|:-------------:|:---:|:---------------:|:--------------------:|:---:|:------------:|
+| **Frontend** |               | |               | |                 |                      | REST |              |
+| **API Gateway** |     REST      | REST |     REST      | REST |                 |                      | |              |
+| **place-booking-service** |               | REST sync |   REST sync    | Kafka |      Kafka      |        Kafka         | |   pub/sub    |
+| **hotel-service** |   REST sync   | |               | REST sync |                 |                      | |              |
+| **booking-service** |     Kafka     | |               | |                 |                      | |   pub/sub    |
+| **payment-service** |     Kafka     | |               | |                 |                      | |   pub/sub    |
+| **notification-service** |               | |               | |                 |                      | |     sub      |
 
 > **payment-service và notification-service không expose qua Gateway** — chỉ tiếp nhận lệnh qua Kafka từ orchestrator. Đảm bảo mọi luồng đặt phòng đều đi qua Saga, không ai bypass được business logic.
 
@@ -103,10 +103,8 @@ Hệ thống sử dụng **hai kiểu giao tiếp** với ranh giới rõ ràng:
 graph TB
     U([User / Browser]) --> FE[Frontend :3000]
     FE -->|REST| GW[API Gateway :8080\nJWT Validation\nServer-side Discovery]
-
     GW <-->|Register & Query| EUR[Eureka Server :8761\nService Registry]
-
-    GW -->|REST| PBS[place-booking-service :5001\nSaga Orchestrator — Task Service]
+    GW -->|REST| PBS[place-booking-service :5001\nSaga Orchestrator - Task Service]
     GW -->|REST| HS[hotel-service :5003\nEntity Service]
     GW -->|REST polling| BS[booking-service :5004\nEntity Service]
 
@@ -164,12 +162,15 @@ graph TB
 
 PlaceBookingService lưu **Saga state** trong DB của mình để track tiến trình qua các bước async. Client dùng **polling** để biết kết quả cuối cùng.
 
+
+
 ```mermaid
 sequenceDiagram
     actor C as Client
     participant GW as Gateway
     participant PBS as place-booking-service
     participant US as user-service
+    participant HS as hotel-service
     participant KF as Kafka
     participant BS as booking-service
     participant PS as payment-service
@@ -179,7 +180,7 @@ sequenceDiagram
     GW->>PBS: Forward (JWT validated)
 
     rect rgb(220, 220, 255)
-        Note over PBS,US: Step 1 — Verify User (Sync REST, client-side discovery)
+        Note over PBS,US: Step 1 — Verify User (Sync REST)
         PBS->>US: GET /users/{userId}
         alt User không tồn tại
             US-->>PBS: 404 Not Found
@@ -189,25 +190,45 @@ sequenceDiagram
         end
     end
 
+    rect rgb(255, 240, 200)
+        Note over PBS,HS: Step 2 — Check Availability (Sync REST, fast-fail)
+        PBS->>HS: GET /hotels/{hotelId}/room-types/{roomTypeId}/availability?checkin=&checkout=
+        Note over HS: hotel-service gọi booking-service lấy active count
+        alt Không còn phòng
+            HS-->>PBS: { available: false }
+            PBS-->>C: 409 No rooms available
+        else Còn phòng
+            HS-->>PBS: { available: true, remainingRooms: N, pricePerNight: X }
+        end
+    end
+
     PBS-->>C: 202 Accepted { bookingId, message: "Đang xử lý" }
     Note over C: Bắt đầu polling GET /bookings/{bookingId}
 
     rect rgb(200, 230, 200)
-        Note over PBS,BS: Step 2 — Create Booking (Async Kafka)
+        Note over PBS,BS: Step 3 — Create Booking (Async Kafka)
         PBS->>KF: publish "CreateBooking" → [booking-commands]
         KF->>BS: consume "CreateBooking"
-        BS->>BS: Insert booking record — status: PENDING
-        BS->>KF: publish "BookingCreated" → [booking-events]
-        KF->>PBS: consume "BookingCreated"
-        PBS->>PBS: Update Saga state → BOOKING_CREATED
+        Note over BS: Re-check availability trong DB transaction<br/>(chống race condition)
+        alt Race condition — hết phòng
+            BS->>KF: publish "BookingFailed" → [booking-events]
+            KF->>PBS: consume "BookingFailed"
+            PBS->>KF: publish "SendBookingFailed" → [notification-commands]
+            KF->>NS: consume → gửi email thất bại
+            Note over C: Polling nhận FAILED
+        else Còn phòng
+            BS->>BS: INSERT booking — status: PENDING
+            BS->>KF: publish "BookingCreated" → [booking-events]
+            KF->>PBS: consume "BookingCreated"
+            PBS->>PBS: Update Saga state → BOOKING_CREATED
+        end
     end
 
     rect rgb(255, 220, 200)
-        Note over PBS,PS: Step 3 — Process Payment (Async Kafka)
+        Note over PBS,PS: Step 4 — Process Payment (Async Kafka)
         PBS->>KF: publish "ProcessPayment" → [payment-commands]
         KF->>PS: consume "ProcessPayment"
         PS->>PS: Circuit Breaker check
-
         alt Payment SUCCESS
             PS->>KF: publish "PaymentSucceeded" → [payment-events]
             KF->>PBS: consume "PaymentSucceeded"
@@ -219,6 +240,9 @@ sequenceDiagram
             PBS->>KF: publish "CancelBooking" → [booking-commands]
             KF->>BS: consume "CancelBooking"
             BS->>BS: Update status → CANCELLED
+            BS->>KF: publish "BookingCancelled" → [booking-events]
+            KF->>PBS: consume "BookingCancelled"
+            PBS->>PBS: Update Saga state → PAYMENT_FAILED
             PBS->>KF: publish "SendBookingFailed" → [notification-commands]
             KF->>NS: consume → gửi email thất bại
             Note over C: Polling nhận CANCELLED
@@ -226,10 +250,13 @@ sequenceDiagram
     end
 
     rect rgb(200, 255, 220)
-        Note over PBS,NS: Step 4 — Confirm (Happy Path)
+        Note over PBS,NS: Step 5 — Confirm (Happy Path)
         PBS->>KF: publish "ConfirmBooking" → [booking-commands]
         KF->>BS: consume "ConfirmBooking"
         BS->>BS: Update status → CONFIRMED
+        BS->>KF: publish "BookingConfirmed" → [booking-events]
+        KF->>PBS: consume "BookingConfirmed"
+        PBS->>PBS: Update Saga state → COMPLETED
         PBS->>KF: publish "SendBookingConfirmed" → [notification-commands]
         KF->>NS: consume → gửi email xác nhận
         Note over C: Polling nhận CONFIRMED
