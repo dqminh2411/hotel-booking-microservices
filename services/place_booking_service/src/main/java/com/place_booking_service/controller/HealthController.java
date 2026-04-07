@@ -1,16 +1,15 @@
 package com.place_booking_service.controller;
 
-
-import jakarta.servlet.http.HttpServletResponse;
+import java.util.Map;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
-
 @RestController
 public class HealthController {
+
     @GetMapping("/health")
-    public void redirect(HttpServletResponse response) throws IOException {
-        response.sendRedirect("/actuator/health");
+    public ResponseEntity<Map<String, String>> health() {
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
 }

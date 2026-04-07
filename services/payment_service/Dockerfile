@@ -1,23 +1,24 @@
 # Build stage
-FROM maven:3.9-openjdk-21 AS build
+FROM eclipse-temurin:21-jdk-alpine AS build
 
 WORKDIR /app
 
+COPY mvnw .
+COPY .mvn .mvn
 COPY pom.xml .
+RUN chmod +x mvnw
+RUN ./mvnw dependency:go-offline -q
 
-RUN mvn dependency:go-offline -B
-
-COPY src ./src
-
-RUN mvn clean package -DskipTests
+COPY src src
+RUN ./mvnw package -DskipTests -q
 
 # Runtime stage
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
 COPY --from=build /app/target/payment_service-0.0.1-SNAPSHOT.jar app.jar
 
-EXPOSE 5005
+EXPOSE 5000
 
 CMD ["java", "-jar", "app.jar"]
