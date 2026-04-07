@@ -26,7 +26,7 @@ public class NotificationController {
         try{
             String content = templateService.buildContent(
                 EmailTemplate.valueOf(req.getEventType()),
-                req.getData()
+                req
             );
 
             emailService.send(

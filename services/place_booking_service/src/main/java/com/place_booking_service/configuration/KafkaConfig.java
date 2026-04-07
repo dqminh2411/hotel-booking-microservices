@@ -1,4 +1,4 @@
-package com.notification_service.configuration;
+package com.place_booking_service.configuration;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
@@ -16,4 +16,22 @@ public class KafkaConfig {
             .replicas(1)
             .build();
     }
+
+    @Bean
+    public NewTopic bookingCommandsTopic(){
+        return TopicBuilder.name("booking-commands")
+            .partitions(1)
+            .replicas(1)
+            .build();
+    }
+
+    @Bean
+    public NewTopic bookingEventsTopic(){
+        return TopicBuilder.name("booking-events")
+            .partitions(1)
+            .replicas(1)
+            .build();
+    }
+
+
 }

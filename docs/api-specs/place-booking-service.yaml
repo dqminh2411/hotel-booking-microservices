@@ -65,6 +65,7 @@ paths:
               $ref: '#/components/schemas/PlaceBookingRequest'
             example:
               userId: US-001
+              hotelId: HT-001
               roomTypeList: [
                 {
                   roomTypeId: rt-001-uuid,
@@ -84,12 +85,7 @@ paths:
               currency: VND
               paymentMethod: CREDIT_CARD
               idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
-              paymentInfo:
-                cardNumber: "4111111111111111"
-                cardHolder: Nguyen Van A
-                expiryMonth: 12
-                expiryYear: 2027
-                cvv: "123"
+              paymentToken: pi_1J2Y3Z4A5B6C7D8E9F0G
       responses:
         '202':
           description: |
@@ -126,12 +122,16 @@ components:
   schemas:
     PlaceBookingRequest:
       type: object
-      required: [userId, roomTypeList, checkin, checkout, numAdults, totalAmount, currency, paymentMethod, paymentInfo, idempotencyKey]
+      required: [userId, hotelId, roomTypeList, checkin, checkout, numAdults, totalAmount, currency, paymentMethod, paymentToken, idempotencyKey]
       properties:
         userId:
           type: string
           description: ID của user đang đặt phòng
           example: US-001
+        hotelId:
+          type: string
+          description: ID của khách sạn mà user muốn đặt phòng
+          example: HT-001
         roomTypeList:
           type: array
           items:
@@ -179,33 +179,10 @@ components:
           type: string
           description: Chuỗi duy nhất do client tạo ra để đảm bảo idempotency
           example: 550e8400-e29b-41d4-a716-446
-        paymentInfo:
-          $ref: '#/components/schemas/PaymentInfo'
-
-    PaymentInfo:
-      type: object
-      required: [cardNumber, cardHolder, expiryMonth, expiryYear, cvv]
-      properties:
-        cardNumber:
+        paymentToken:
           type: string
-          description: Số thẻ (16 chữ số)
-          example: "4111111111111111"
-        cardHolder:
-          type: string
-          description: Tên chủ thẻ
-          example: Nguyen Van A
-        expiryMonth:
-          type: integer
-          minimum: 1
-          maximum: 12
-          example: 12
-        expiryYear:
-          type: integer
-          example: 2027
-        cvv:
-          type: string
-          description: Mã CVV (3-4 chữ số)
-          example: "123"
+          description: Token thanh toán đã được tạo ra từ frontend (ví dụ Stripe PaymentIntent ID)
+          example: pi_1J2Y3Z4A5B6C7D8E9F0G
 
     PlaceBookingAccepted:
       type: object
@@ -244,11 +221,3 @@ components:
           type: string
           example: User không tồn tại trong hệ thống
 
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-security:
-  - bearerAuth: []
