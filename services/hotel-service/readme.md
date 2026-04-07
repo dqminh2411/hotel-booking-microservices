@@ -8,7 +8,7 @@
 - **Data ownership**: Sở hữu toàn bộ dữ liệu về `hotels`, `room_types`
 - **Vai trò trong hệ thống**:
   - Được client gọi trực tiếp qua Gateway (sync REST) để tìm kiếm khách sạn, xem chi tiết, xem danh sách loại phòng
-  - Khi tính availability, hotel-service gọi nội bộ đến `booking-service` (sync REST, client-side discovery qua Eureka) để lấy số booking đang active, sau đó tính `availableRooms = quantity - activeBookingCount`
+  - Khi tính availability, hotel-service gọi nội bộ đến `booking-service` qua OpenFeign (`@FeignClient`) và Eureka client-side discovery để lấy số booking đang active, sau đó tính `availableRooms = quantity - activeBookingCount`
   - Được place-booking-service gọi để check availability trước khi khởi động Saga đặt phòng
 ## Tech Stack
 
@@ -107,9 +107,9 @@ hotel-service/
         │   ├── repository/     # JPA repositories
         │   ├── entity/         # JPA entities (Hotel, RoomType)
         │   ├── dto/            # Request/Response DTOs
-        │   └── client/         # REST client gọi booking-service
+        │   └── client/         # OpenFeign client gọi booking-service qua Eureka
         └── resources/
-            └── application.yml
+            └── application.properties
 ```
 
 ## Environment Variables
@@ -122,8 +122,10 @@ hotel-service/
 | `DB_NAME` | Tên database | `hotel_db` |
 | `DB_USER` | Username PostgreSQL | `postgres` |
 | `DB_PASSWORD` | Password PostgreSQL | *(required)* |
+| `EUREKA_ENABLED` | Bật/tắt Eureka client registration/discovery | `true` |
 | `EUREKA_SERVER_URL` | URL Eureka Server | `http://eureka-server:8761/eureka` |
-| `BOOKING_SERVICE_URL` | URL booking-service (fallback nếu không dùng Eureka) | `http://booking-service:5004` |
+| `BOOKING_SERVICE_CONNECT_TIMEOUT_MS` | Feign connect timeout khi gọi booking-service | `2000` |
+| `BOOKING_SERVICE_READ_TIMEOUT_MS` | Feign read timeout khi gọi booking-service | `5000` |
 
 ## Implementation Notes
 

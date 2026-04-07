@@ -359,11 +359,3 @@ components:
           type: string
           example: Khách sạn không tồn tại
 
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-security:
-  - bearerAuth: []
