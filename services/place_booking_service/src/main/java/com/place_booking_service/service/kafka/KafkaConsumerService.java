@@ -34,8 +34,10 @@ public class KafkaConsumerService {
         Map<String, Object> payload = new ObjectMapper().readValue(payloadJson, Map.class);
         String eventType = (String) payload.get("eventType");
         String sagaId = (String) payload.get("sagaId");
+        System.out.println(eventType);
         Optional<SagaState> state= sagaStateRepository.findSagaStateById(sagaId);
         if(state.isEmpty()){
+            System.out.println("sagaId is emplty:");
             return;
         }
         ObjectMapper mapper = new ObjectMapper();
@@ -47,12 +49,13 @@ public class KafkaConsumerService {
             case "BookingCancelled" -> handleBookingCancelled(mapper.convertValue(payload, BookingCancelled.class));
         }
     }
-    @KafkaListener(topics = "booking-events")
+    @KafkaListener(topics = "payment-events")
     @Transactional
     public void paymentEventsHandler(String payloadJson) throws JsonProcessingException {
         Map<String, Object> payload = new ObjectMapper().readValue(payloadJson, Map.class);
         String eventType = (String) payload.get("eventType");
         String sagaId = (String) payload.get("sagaId");
+        System.out.println(eventType);
         Optional<SagaState> state= sagaStateRepository.findSagaStateById(sagaId);
         if(state.isEmpty()){
             return;
@@ -192,7 +195,7 @@ public class KafkaConsumerService {
     }
 
     private void handlePaymentSucceeded(PaymentSucceeded paymentSucceeded) {
-        System.out.println(paymentSucceeded);
+        System.out.println("payment succeeded "+paymentSucceeded);
         String bookingId = paymentSucceeded.getBookingId();
         Optional<SagaState> sagaOpt = sagaStateRepository.findByBookingId(bookingId);
         if (sagaOpt.isEmpty()) {
@@ -211,7 +214,7 @@ public class KafkaConsumerService {
     }
 
     private void handlePaymentFailed(PaymentFailed paymentFailed) {
-        System.out.println(paymentFailed);
+        System.out.println("payment failed "+paymentFailed);
         String bookingId = paymentFailed.getBookingId();
         Optional<SagaState> sagaOpt = sagaStateRepository.findByBookingId(bookingId);
         if (sagaOpt.isEmpty()) {

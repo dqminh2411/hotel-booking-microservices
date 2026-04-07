@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Service
 public class KafkaNotificationConsumerService {
     @Autowired
@@ -20,7 +22,8 @@ public class KafkaNotificationConsumerService {
     @KafkaListener(topics = "notification-commands", groupId = "notification-service-group")
     public void consume(String payloadJson) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
-        EmailRequest command = objectMapper.readValue(payloadJson, EmailRequest.class);
+        Map<String, Object> payload = new ObjectMapper().readValue(payloadJson, Map.class);
+        EmailRequest command = objectMapper.convertValue(payload, EmailRequest.class);
         System.out.println(command);
 
         String content = templateService.buildContent(
