@@ -1,44 +1,23 @@
 # API Gateway
 
-## Overview
+## Tổng quan
 
-The API Gateway serves as the single entry point for all client requests. It routes incoming requests to the appropriate backend microservice.
+Gateway sử dụng **Spring Cloud Gateway + Spring WebFlux** và **Eureka Discovery Client**.  
+Việc định tuyến (routing) được cấu hình thủ công trong file `src/main/resources/application.yml`, sử dụng `lb://` để thực hiện cân bằng tải thông qua Eureka.
 
-## Responsibilities
+## Bảng định tuyến (Routing tường minh)
 
-- **Request routing**: Forward requests to the correct service
-- **Load balancing**: Distribute traffic (if applicable)
-- **Authentication**: Validate tokens/credentials (optional)
-- **Rate limiting**: Protect services from overload (optional)
-- **CORS handling**: Allow frontend cross-origin requests
-- **Request/Response transformation**: Modify headers, paths as needed
+| Đường dẫn bên ngoài | Route ID | Service đích (Eureka) | Filter |
+|---|---|---|---|
+| `/place-booking/**` | `place-booking-service-route` | `lb://place-booking-service` | `StripPrefix=1` |
+| `/bookings/**` | `booking-service-route` | `lb://booking-service` | `StripPrefix=1` |
 
-## Tech Stack
+## Cấu hình Eureka
 
-| Component  | Choice             |
-|------------|--------------------|
-| Approach   | *(e.g., Nginx, Express, FastAPI, Kong, Traefik)* |
+- `eureka.client.service-url.defaultZone=http://localhost:8761/eureka`
+- Có thể ghi đè thông qua biến môi trường: `EUREKA_SERVER_URL`
 
-## Routing Table
-
-| External Path        | Target Service | Internal URL                   |
-|----------------------|----------------|--------------------------------|
-| `/api/service-a/*`   | Service A      | `http://service-a:5000/*`      |
-| `/api/service-b/*`   | Service B      | `http://service-b:5000/*`      |
-
-## Running
+## Chạy ứng dụng
 
 ```bash
-# From project root
 docker compose up gateway --build
-```
-
-## Configuration
-
-The gateway uses Docker Compose networking. Services are accessible by their
-service names defined in `docker-compose.yml` (e.g., `service-a`, `service-b`).
-
-## Notes
-
-- Use service names (not `localhost`) for upstream URLs inside Docker
-- The gateway exposes port 8080 to the host
