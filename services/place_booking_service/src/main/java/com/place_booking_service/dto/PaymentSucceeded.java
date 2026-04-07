@@ -17,5 +17,5 @@ public class PaymentSucceeded {
     private Double amount;
     private String currency;
     private String transactionRef;
-    private LocalDateTime processedAt;
+    private String processedAt;
 }

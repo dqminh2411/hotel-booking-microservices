@@ -74,7 +74,7 @@ public class KafkaConsumerService {
             paymentSucceeded.setAmount(processPayment.getAmount());
             paymentSucceeded.setCurrency(processPayment.getCurrency());
             paymentSucceeded.setTransactionRef(result.getTransactionRef());
-            paymentSucceeded.setProcessedAt(LocalDateTime.now());
+            paymentSucceeded.setProcessedAt(LocalDateTime.now().toString());
 
             outboxPublisherService.saveOutboxMessage("payment-events", paymentSucceeded, "PaymentSucceeded");
         } else {
