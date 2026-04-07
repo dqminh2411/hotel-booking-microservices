@@ -1,34 +1,33 @@
-package com.place_booking_service.service;
+package com.payment_service.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.place_booking_service.dto.CreateBooking;
-import com.place_booking_service.entity.OutboxMessage;
-import com.place_booking_service.repository.OutboxMessageRepository;
-import com.place_booking_service.service.kafka.KafkaProducerService;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payment_service.entity.OutboxMessage;
+import com.payment_service.repository.OutboxMessageRepository;
+import com.payment_service.service.kafka.KafkaProducerService;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 public class OutboxPublisherService {
 
     @Autowired
-    private  OutboxMessageRepository outboxMessageRepository;
+    private OutboxMessageRepository outboxMessageRepository;
     @Autowired
-    private  KafkaProducerService kafkaProducerService;
+    private KafkaProducerService kafkaProducerService;
     @Autowired
-    private  ObjectMapper objectMapper;
-
-
+    private ObjectMapper objectMapper;
 
     @Scheduled(fixedDelayString = "${outbox.publisher.delay:100}")
     @Transactional
@@ -37,14 +36,14 @@ public class OutboxPublisherService {
         for (OutboxMessage message : pending) {
             try {
                 JsonNode payload = objectMapper.readTree(message.getPayload());
-                String bookingId= payload.path("bookingId").asText();
+                String bookingId = payload.path("bookingId").asText();
                 Object payloadObj = objectMapper.readValue(message.getPayload(), Object.class);
-                kafkaProducerService.send(message.getTopic(),bookingId, payloadObj);
+                kafkaProducerService.send(message.getTopic(), bookingId, payloadObj);
 
                 message.setStatus("PROCESSED");
                 message.setPublishedAt(LocalDateTime.now());
 
-            } catch (Exception e) {
+            } catch (JsonProcessingException e) {
                 log.error("Publish failed id={}", message.getId(), e);
 
                 message.setRetryCount(message.getRetryCount() + 1);
@@ -58,9 +57,8 @@ public class OutboxPublisherService {
         outboxMessageRepository.saveAll(pending);
     }
 
-
-    public void saveOutboxMessage(String topic, Object message,String eventType) {
-        try{
+    public void saveOutboxMessage(String topic, Object message, String eventType) {
+        try {
             String payload = objectMapper.writeValueAsString(message);
             OutboxMessage outboxMessage = new OutboxMessage();
             outboxMessage.setId(UUID.randomUUID());

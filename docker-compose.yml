@@ -107,12 +107,31 @@ services:
 #      - kafka
 #    environment:
 #      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-#    env_file:
-#      - ./services/notification-service/.env
+###    env_file:
+###      - ./services/notification-service/.env
 #    networks:
 #      - app-network
 #    healthcheck:
 #      test: ["CMD", "curl", "-f", "http://localhost:5006/health"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#
+#  # ─── Payment Service ─────────────────────────────
+#  payment-service:
+#    build: ./services/payment_service
+#    ports:
+#      - "${PAYMENT_SERVICE_PORT:-5005}:5005"
+#    depends_on:
+#      - kafka
+#    environment:
+#      KAFKA_SERVER: kafka:29092
+###    env_file:
+###      - ./services/payment-service/.env
+#    networks:
+#      - app-network
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
 #      interval: 30s
 #      timeout: 10s
 #      retries: 3

@@ -33,5 +33,21 @@ public class KafkaConfig {
             .build();
     }
 
+    @Bean
+    public NewTopic paymentCommandsTopic() {
+        return TopicBuilder.name("payment-commands")
+            .partitions(1)
+            .replicas(1)
+            .build();
+    }
+
+    @Bean
+    public NewTopic paymentEventsTopic() {
+        return TopicBuilder.name("payment-events")
+            .partitions(1)
+            .replicas(1)
+            .build();
+    }
+
 
 }
