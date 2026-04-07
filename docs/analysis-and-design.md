@@ -373,17 +373,16 @@ Booking Service (Entity Service):
 
 ```mermaid
 flowchart TD
-  A[Receive request] --> B{Action type}
+  A[Get event from Message Queue] --> B{Event type}
 
-  B -->|Create booking| C[(Insert booking with PENDING)]
-  C --> D[(Insert booked rooms)]
-  D --> E[Return booking data]
+  B -->|CreateBooking event| C[( Transaction:\n- Check roomtype availability\n- Insert booking with PENDING\n- Insert booked roomtypes\n- Insert BookingCreated event into outbox)]
+  C --> D[Outbox Relay picks up event and publish to Message Queue]
 
-  B -->|Confirm booking| F[(Update status to CONFIRMED)]
-  F --> G[Return success]
+  B -->|ConfirmBooking event| F[(Transaction:\n- Update status to CONFIRMED\n- Insert BookingConfirmed event into outbox)]
+  F --> D[Outbox Relay picks up event and publish to Message Queue]
 
-  B -->|Cancel booking| H[(Update status to CANCELLED)]
-  H --> I[Return success]
+  B -->|CancelBooking event | H[(Transaction:\n- Update status to CANCELLED\n- Insert BookingCancelled event into outbox)]
+  H --> D[Outbox Relay picks up event and publish to Message Queue]
 ```
 
 <p align="center">
