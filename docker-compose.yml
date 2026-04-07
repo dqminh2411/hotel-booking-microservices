@@ -51,8 +51,6 @@ services:
 
 
 
-
-
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -99,6 +97,26 @@ services:
     networks:
       - app-network
 
+
+  # ─── Notification Service ────────────────────────
+  notification-service:
+    build: ./services/notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-5006}:5006"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    env_file:
+      - ./services/notification-service/.env
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # ─── Shared Infrastructure (uncomment as needed) ─
   # db:
   #   image: postgres:16-alpine    # or mysql:8, mongo:7, etc.
@@ -113,20 +131,7 @@ services:
   #   networks:
   #     - app-network
 
-  # redis:
-  #   image: redis:7-alpine
-  #   ports:
-  #     - "6379:6379"
-  #   networks:
-  #     - app-network
 
-  # rabbitmq:
-  #   image: rabbitmq:3-management-alpine
-  #   ports:
-  #     - "5672:5672"
-  #     - "15672:15672"
-  #   networks:
-  #     - app-network
 
 networks:
   app-network:
