@@ -22,7 +22,7 @@ import org.springframework.validation.annotation.Validated;
 @RestController
 @Validated
 @RequiredArgsConstructor
-@RequestMapping("/bookings")
+@RequestMapping({"/bookings", ""})
 public class BookingController {
     private final BookingService bookingService;
 

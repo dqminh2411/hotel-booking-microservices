@@ -37,8 +37,8 @@ Describe or diagram the high-level Business Process to be automated.
 ```mermaid
 flowchart TD
 
-A[Customer đăng nhập hệ thống] --> B[Hiển thị danh sách khách sạn]
-B --> C[Customer tìm kiếm khách sạn theo tiêu chí]
+
+C[Customer tìm kiếm khách sạn theo tiêu chí]
 C --> D[Hệ thống trả về danh sách khách sạn phù hợp]
 
 D --> E[Customer chọn 1 khách sạn]

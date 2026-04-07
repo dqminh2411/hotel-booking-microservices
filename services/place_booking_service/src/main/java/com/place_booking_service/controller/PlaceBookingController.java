@@ -20,7 +20,7 @@ import com.place_booking_service.dto.User;
 import com.place_booking_service.service.PlaceBookingService;
 
 @RestController
-@RequestMapping("/place-booking")
+@RequestMapping({"/place-booking", ""})
 public class PlaceBookingController {
 
     @Autowired
@@ -34,24 +34,24 @@ public class PlaceBookingController {
 
     @PostMapping
     public ResponseEntity<?> placeBooking(@RequestBody PlaceBookingRequest placeBookingRequest) {
-//        User user= userServiceClient.getUserById(placeBookingRequest.getUserId());
-//        Hotel hotel= hotelServiceClient.getHotelById(placeBookingRequest.getHotelId());
-//
-//        if(user==null){
-//            return  ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-//                "code", "USER_NOT_FOUND",
-//                "message", "User không tồn tại trong hệ thống"
-//            ));
-//        }
-//        if(hotel==null){
-//            return  ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-//                "code", "HOTEL_NOT_FOUND",
-//                "message", "Hotel không tồn tại trong hệ thống"
-//            ));
-//        }
+        User user= userServiceClient.getUserById(placeBookingRequest.getUserId());
+        Hotel hotel= hotelServiceClient.getHotelById(placeBookingRequest.getHotelId());
 
-        User user = new User("US-001","nguyen van a", "a@mail.com");
-        Hotel hotel= new Hotel("HT-001","luxury hotel","so 1, le a");
+        if(user==null){
+            return  ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "code", "USER_NOT_FOUND",
+                "message", "User không tồn tại trong hệ thống"
+            ));
+        }
+        if(hotel==null){
+            return  ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "code", "HOTEL_NOT_FOUND",
+                "message", "Hotel không tồn tại trong hệ thống"
+            ));
+        }
+
+//        User user = new User("US-001","nguyen van a", "a@mail.com");
+//        Hotel hotel= new Hotel("HT-001","luxury hotel","so 1, le a");
 
         LocalDate checkin= LocalDate.parse(placeBookingRequest.getCheckin());
         LocalDate checkout= LocalDate.parse(placeBookingRequest.getCheckout());

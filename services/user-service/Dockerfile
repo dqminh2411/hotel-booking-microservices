@@ -16,7 +16,11 @@ COPY .mvn .mvn
 COPY pom.xml .
 
 # Download dependencies (cache layer riêng — chỉ re-run khi pom.xml thay đổi)
-RUN ./mvnw dependency:go-offline -q
+RUN ./mvnw -Dmaven.wagon.http.retryHandler.count=3 \
+           -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+           -Dmaven.wagon.http.connectionTimeout=120000 \
+           -Dmaven.wagon.http.readTimeout=120000 \
+           dependency:go-offline -q
 
 # Copy source code và build JAR (bỏ qua tests — chạy tests ở CI pipeline)
 COPY src src

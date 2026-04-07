@@ -4,7 +4,7 @@
 # ============================================================
 
 # ── Stage 1: Builder ─────────────────────────────────────────
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
 WORKDIR /build
 
@@ -20,7 +20,7 @@ RUN ./mvnw package -DskipTests -q
 RUN java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
-FROM eclipse-temurin:17-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine AS runtime
 
 RUN apk add --no-cache dumb-init
 
