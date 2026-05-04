@@ -113,12 +113,3 @@ components:
         message:
           type: string
           example: User không tồn tại
-
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-security:
-  - bearerAuth: []

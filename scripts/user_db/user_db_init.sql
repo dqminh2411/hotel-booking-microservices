@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     name       TEXT         NOT NULL,
     email      VARCHAR(255) NOT NULL UNIQUE,
     phone      VARCHAR(20),
+    password   VARCHAR(255),
     created_at TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
@@ -48,15 +49,15 @@ ON CONFLICT (id) DO NOTHING;
 -- SEED DATA — Users
 -- ────────────────────────────────────────────────────────────
 
-INSERT INTO users (id, name, email, phone, created_at) VALUES
-    ('US-001', 'Nguyen Van An',   'an.nguyen@email.com',   '0901234561', NOW()),
-    ('US-002', 'Tran Thi Binh',   'binh.tran@email.com',   '0901234562', NOW()),
-    ('US-003', 'Le Van Cuong',    'cuong.le@email.com',    '0901234563', NOW()),
-    ('US-004', 'Pham Thi Dung',   'dung.pham@email.com',   '0901234564', NOW()),
-    ('US-005', 'Hoang Van Em',    'em.hoang@email.com',    '0901234565', NOW()),
+INSERT INTO users (id, name, email, phone, password, created_at) VALUES
+    ('US-001', 'Nguyễn Đức Lâm',   'nguyenduclam478@gmail.com',   '0901234561','1234', NOW()),
+    ('US-002', 'Tran Thi Binh',   'binh.tran@email.com',   '0901234562', '1234', NOW()),
+    ('US-003', 'Le Van Cuong',    'cuong.le@email.com',    '0901234563','1234', NOW()),
+    ('US-004', 'Pham Thi Dung',   'dung.pham@email.com',   '0901234564','1234', NOW()),
+    ('US-005', 'Hoang Van Em',    'em.hoang@email.com',    '0901234565','1234', NOW()),
     -- HOST users (chủ khách sạn)
-    ('US-H01', 'Nguyen Thi Host', 'host1@hotel.com',       '0911111111', NOW()),
-    ('US-H02', 'Tran Van Manager','host2@hotel.com',       '0922222222', NOW())
+    ('US-H01', 'Nguyen Thi Host', 'host1@hotel.com',       '0911111111','1234', NOW()),
+    ('US-H02', 'Tran Van Manager','host2@hotel.com',       '0922222222','1234', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ────────────────────────────────────────────────────────────

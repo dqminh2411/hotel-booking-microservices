@@ -30,13 +30,14 @@
 
 ### `users` — Thông tin người dùng hệ thống
 
-| Field | Datatype | Constraint | Description                     |
-|-------|----------|------------|---------------------------------|
+| Field | Datatype | Constraint | Description |
+|-------|----------|------------|----------|
 | `id` | varchar(255) | PRIMARY KEY | id người dùng (ví dụ: `US-001`) |
-| `name` | text | NOT NULL | Tên người dùng                  |
-| `email` | varchar(255) | NOT NULL, UNIQUE | Địa chỉ email đăng nhập         |
-| `phone` | varchar(20) | | Số điện thoại                   |
-| `created_at` | timestamp | DEFAULT NOW() | Thời gian tạo tài khoản         |
+| `name` | text | NOT NULL | Tên người dùng |
+| `email` | varchar(255) | NOT NULL, UNIQUE | Địa chỉ email đăng nhập |
+| `phone` | varchar(20) | | Số điện thoại |
+| `password` | varchar(255) | NOT NULL | Mật khẩu |
+| `created_at` | timestamp | DEFAULT NOW() | Thời gian tạo tài khoản |
 
 ### `roles` — Danh sách vai trò trong hệ thống
 
